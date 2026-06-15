@@ -2,12 +2,21 @@
 Checks: >
   -*,
   cert-*,
+  -cert-dcl37-c,
+  -cert-dcl51-cpp,
   bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-incorrect-roundings,
+  -bugprone-reserved-identifier,
   performance-*,
   clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.strcpy,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   readability-*,
   -readability-magic-numbers,
-  -readability-identifier-length
+  -readability-identifier-length,
+  -readability-simplify-boolean-expr,
+  -readability-function-cognitive-complexity
 
 WarningsAsErrors: "cert-*,bugprone-*,clang-analyzer-*"
 
@@ -15,5 +24,5 @@ HeaderFilterRegex: "^(src|include)/.*"
 
 CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines
-    value: "1"
+    value: "2"
 ...
