@@ -2,33 +2,9 @@
 // Copyright (C) 2026 seclususs
 
 #include "pascal_gov/sysfs.h"
+#include "pascal_gov/parser.h"
 #include <errno.h>
 #include <unistd.h>
-
-static inline size_t pascal_gov_u64_to_str(uint64_t val, char *out_buf)
-{
-	if (val == 0) {
-		out_buf[0] = '0';
-		out_buf[1] = '\n';
-		return 2;
-	}
-
-	char temp[32];
-	char *p = &temp[31];
-	*p = '\n';
-
-	while (val > 0) {
-		*(--p) = (char)((val % 10) + '0');
-		val /= 10;
-	}
-
-	size_t len = (size_t)(&temp[31] - p) + 1;
-
-	for (size_t i = 0; i < len; ++i)
-		out_buf[i] = p[i];
-
-	return len;
-}
 
 int pascal_gov_sysfs_write_to_stream(int fd, uint64_t value)
 {
@@ -36,7 +12,7 @@ int pascal_gov_sysfs_write_to_stream(int fd, uint64_t value)
 		return -EBADF;
 
 	char write_buf[32];
-	size_t len = pascal_gov_u64_to_str(value, write_buf);
+	size_t len = pascal_gov_fmt_u64(value, write_buf);
 
 	ssize_t res = pwrite(fd, write_buf, len, 0);
 	if (res < 0)

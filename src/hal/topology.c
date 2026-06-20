@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include "daemon/topology.h"
 #include "daemon/logger.h"
+#include "pascal_gov/parser.h"
 #include <fcntl.h>
 #include <limits.h>
 #include <sched.h>
@@ -28,16 +29,12 @@ static long read_sysfs_long(const char *path)
 	if (bytes <= 0)
 		return -1;
 
-	long val = 0;
+	bool has_digits;
 
-	for (ssize_t i = 0; i < bytes; ++i) {
-		if (buf[i] >= '0' && buf[i] <= '9')
-			val = val * 10 + (buf[i] - '0');
-		else
-			break;
-	}
+	int32_t parsed_val = pascal_gov_parse_i32((const uint8_t *)buf,
+						  (size_t)bytes, &has_digits);
 
-	return val;
+	return has_digits ? (long)parsed_val : -1;
 }
 
 static bool build_little_cpuset(long num_cores, const char *fmt,

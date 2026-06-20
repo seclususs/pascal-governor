@@ -2,6 +2,7 @@
 // Copyright (C) 2026 seclususs
 
 #include "pascal_gov/sensor.h"
+#include "pascal_gov/parser.h"
 #include <errno.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -40,34 +41,17 @@ int pascal_gov_sensor_read_temp(
 		return -EIO;
 	}
 
-	int32_t parsed_val = 0;
-	int32_t sign = 1;
-	bool has_digits = false;
+	bool has_digits;
 
-	for (ssize_t i = 0; i < bytes_read; ++i) {
-		uint8_t byte = sensor->buffer[i];
-
-		if (byte >= '0' && byte <= '9') {
-			parsed_val = (parsed_val * 10) + (byte - '0');
-			has_digits = true;
-			continue;
-		}
-
-		if (byte == '-' && !has_digits) {
-			sign = -1;
-			continue;
-		}
-
-		if (has_digits)
-			break;
-	}
+	int32_t parsed_val = pascal_gov_parse_i32(
+		sensor->buffer, (size_t)bytes_read, &has_digits);
 
 	if (!has_digits) {
 		*out_temp = sensor->default_val;
 		return -EINVAL;
 	}
 
-	float final_temp = (float)(parsed_val * sign);
+	float final_temp = (float)parsed_val;
 	float abs_temp = (final_temp < 0.0F) ? -final_temp : final_temp;
 
 	if (PASCAL_GOV_LIKELY(abs_temp >= TEMP_SCALE_MILLI_THRESHOLD))
@@ -97,21 +81,10 @@ int pascal_gov_sensor_read_battery(
 		return -EIO;
 	}
 
-	int32_t parsed_val = 0;
-	bool has_digits = false;
+	bool has_digits;
 
-	for (ssize_t i = 0; i < bytes_read; ++i) {
-		uint8_t byte = sensor->buffer[i];
-
-		if (byte >= '0' && byte <= '9') {
-			parsed_val = (parsed_val * 10) + (byte - '0');
-			has_digits = true;
-			continue;
-		}
-
-		if (has_digits)
-			break;
-	}
+	int32_t parsed_val = pascal_gov_parse_i32(
+		sensor->buffer, (size_t)bytes_read, &has_digits);
 
 	*out_capacity = has_digits ? (float)parsed_val : 100.0F;
 
