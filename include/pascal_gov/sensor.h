@@ -10,7 +10,6 @@
 typedef struct {
 	int fd;
 	uint8_t buffer[16];
-	float default_val;
 } pascal_gov_thermal_sensor;
 
 typedef struct {
@@ -18,14 +17,29 @@ typedef struct {
 	uint8_t buffer[16];
 } pascal_gov_battery_sensor;
 
-void pascal_gov_sensor_init_thermal(
-	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor, int fd,
-	float default_val);
+void pascal_gov_sensor_init_cpu_thermal(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
+	const char *path);
+
+void pascal_gov_sensor_init_bat_thermal(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
+	const char *path);
 
 void pascal_gov_sensor_init_battery(
-	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor, int fd);
+	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor,
+	const char *path);
 
-int pascal_gov_sensor_read_temp(
+void pascal_gov_sensor_destroy_thermal(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor);
+
+void pascal_gov_sensor_destroy_battery(
+	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor);
+
+int pascal_gov_sensor_read_cpu_temp(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
+	float *PASCAL_GOV_RESTRICT out_temp);
+
+int pascal_gov_sensor_read_bat_temp(
 	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
 	float *PASCAL_GOV_RESTRICT out_temp);
 

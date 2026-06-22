@@ -2,34 +2,67 @@
 // Copyright (C) 2026 seclususs
 
 #include "pascal_gov/sensor.h"
+#include "daemon/logger.h"
 #include "pascal_gov/parser.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <unistd.h>
 
 #define TEMP_SCALE_MILLI_THRESHOLD 10000.0F
 #define TEMP_SCALE_DECI_THRESHOLD 100.0F
+#define FALLBACK_TEMP_CPU 65.0F
+#define FALLBACK_TEMP_BAT 35.0F
+#define FALLBACK_BAT_CAPACITY 100.0F
 
-void pascal_gov_sensor_init_thermal(
-	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor, int fd,
-	float default_val)
+void pascal_gov_sensor_init_cpu_thermal(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor, const char *path)
 {
-	sensor->fd = fd;
-	sensor->default_val = default_val;
+	sensor->fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (sensor->fd < 0)
+		LOGW("sensor: failed to open cpu thermal node %s", path);
+}
+
+void pascal_gov_sensor_init_bat_thermal(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor, const char *path)
+{
+	sensor->fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (sensor->fd < 0)
+		LOGW("sensor: failed to open bat thermal node %s", path);
 }
 
 void pascal_gov_sensor_init_battery(
-	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor, int fd)
+	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor, const char *path)
 {
-	sensor->fd = fd;
+	sensor->fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (sensor->fd < 0)
+		LOGW("sensor: failed to open battery node %s", path);
 }
 
-int pascal_gov_sensor_read_temp(
-	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
-	float *PASCAL_GOV_RESTRICT out_temp)
+void pascal_gov_sensor_destroy_thermal(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor)
+{
+	if (sensor->fd >= 0) {
+		close(sensor->fd);
+		sensor->fd = -1;
+	}
+}
+
+void pascal_gov_sensor_destroy_battery(
+	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor)
+{
+	if (sensor->fd >= 0) {
+		close(sensor->fd);
+		sensor->fd = -1;
+	}
+}
+
+static inline int
+read_temp_internal(pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
+		   float *PASCAL_GOV_RESTRICT out_temp, float fallback_val)
 {
 	if (sensor->fd < 0) {
-		*out_temp = sensor->default_val;
+		*out_temp = fallback_val;
 		return -EBADF;
 	}
 
@@ -37,7 +70,7 @@ int pascal_gov_sensor_read_temp(
 		pread(sensor->fd, sensor->buffer, sizeof(sensor->buffer), 0);
 
 	if (bytes_read <= 0) {
-		*out_temp = sensor->default_val;
+		*out_temp = fallback_val;
 		return -EIO;
 	}
 
@@ -47,7 +80,7 @@ int pascal_gov_sensor_read_temp(
 		sensor->buffer, (size_t)bytes_read, &has_digits);
 
 	if (!has_digits) {
-		*out_temp = sensor->default_val;
+		*out_temp = fallback_val;
 		return -EINVAL;
 	}
 
@@ -64,12 +97,26 @@ int pascal_gov_sensor_read_temp(
 	return 0;
 }
 
+int pascal_gov_sensor_read_cpu_temp(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
+	float *PASCAL_GOV_RESTRICT out_temp)
+{
+	return read_temp_internal(sensor, out_temp, FALLBACK_TEMP_CPU);
+}
+
+int pascal_gov_sensor_read_bat_temp(
+	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
+	float *PASCAL_GOV_RESTRICT out_temp)
+{
+	return read_temp_internal(sensor, out_temp, FALLBACK_TEMP_BAT);
+}
+
 int pascal_gov_sensor_read_battery(
 	pascal_gov_battery_sensor *PASCAL_GOV_RESTRICT sensor,
 	float *PASCAL_GOV_RESTRICT out_capacity)
 {
 	if (sensor->fd < 0) {
-		*out_capacity = 100.0F;
+		*out_capacity = FALLBACK_BAT_CAPACITY;
 		return -EBADF;
 	}
 
@@ -77,7 +124,7 @@ int pascal_gov_sensor_read_battery(
 		pread(sensor->fd, sensor->buffer, sizeof(sensor->buffer), 0);
 
 	if (bytes_read <= 0) {
-		*out_capacity = 100.0F;
+		*out_capacity = FALLBACK_BAT_CAPACITY;
 		return -EIO;
 	}
 
@@ -86,7 +133,7 @@ int pascal_gov_sensor_read_battery(
 	int32_t parsed_val = pascal_gov_parse_i32(
 		sensor->buffer, (size_t)bytes_read, &has_digits);
 
-	*out_capacity = has_digits ? (float)parsed_val : 100.0F;
+	*out_capacity = has_digits ? (float)parsed_val : FALLBACK_BAT_CAPACITY;
 
 	return 0;
 }
