@@ -2,7 +2,6 @@
 // Copyright (C) 2026 seclususs
 
 #include "daemon/scan.h"
-#include "daemon/logger.h"
 #include "pascal_gov/compiler.h"
 #include "pascal_gov/str.h"
 #include <dirent.h>
@@ -51,17 +50,13 @@ static const char *const BLACKLIST[] = {
 	"pmic",	   "buck", "ldo",  "xo_therm", "quiet",	 "backlight"};
 
 #define PASCAL_GOV_THERMAL_BASE "/sys/class/thermal"
-#define PASCAL_GOV_THERMAL_FALLBACK "thermal_zone3"
 
 int pascal_gov_scan_thermal_zone(char *out_path, size_t max_len)
 {
 	DIR *dir = opendir(PASCAL_GOV_THERMAL_BASE);
 	if (!dir) {
-		pascal_gov_str_build_path(out_path, max_len,
-					  PASCAL_GOV_THERMAL_BASE,
-					  PASCAL_GOV_THERMAL_FALLBACK, "temp");
-
-		return 0;
+		out_path[0] = '\0';
+		return -1;
 	}
 
 	struct dirent *entry;
@@ -134,10 +129,19 @@ int pascal_gov_scan_thermal_zone(char *out_path, size_t max_len)
 		strcpy(lower_name, zones[z].name);
 		pascal_gov_str_to_lower(lower_name);
 
-		bool is_cpu = pascal_gov_str_contains(lower_name, "cpu") ||
-			      pascal_gov_str_contains(lower_name, "soc") ||
-			      pascal_gov_str_contains(lower_name, "cluster") ||
-			      pascal_gov_str_contains(lower_name, "ap");
+		bool is_cpu = pascal_gov_str_contains(lower_name, "cpu");
+
+		if (!is_cpu)
+			is_cpu = pascal_gov_str_contains(lower_name, "soc");
+
+		if (!is_cpu)
+			is_cpu = pascal_gov_str_contains(lower_name, "cluster");
+
+		if (!is_cpu)
+			is_cpu = pascal_gov_str_contains(lower_name, "ap");
+
+		if (!is_cpu)
+			continue;
 
 		bool is_safe = true;
 
@@ -157,7 +161,6 @@ int pascal_gov_scan_thermal_zone(char *out_path, size_t max_len)
 		}
 	}
 
-	pascal_gov_str_build_path(out_path, max_len, PASCAL_GOV_THERMAL_BASE,
-				  PASCAL_GOV_THERMAL_FALLBACK, "temp");
-	return 0;
+	out_path[0] = '\0';
+	return -1;
 }
