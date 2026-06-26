@@ -9,8 +9,8 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-#define TEMP_SCALE_MILLI_THRESHOLD 10000.0F
-#define TEMP_SCALE_DECI_THRESHOLD 100.0F
+#define SCALE_MILLI 0.001F
+#define SCALE_DECI 0.1F
 #define FALLBACK_TEMP_CPU 65.0F
 #define FALLBACK_TEMP_BAT 35.0F
 #define FALLBACK_BAT_CAPACITY 100.0F
@@ -19,6 +19,7 @@ void pascal_gov_sensor_init_cpu_thermal(
 	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor, const char *path)
 {
 	sensor->fd = open(path, O_RDONLY | O_CLOEXEC);
+	sensor->scale_multiplier = SCALE_MILLI;
 	if (sensor->fd < 0) {
 		LOGW("sensor: failed to open node %s err=%d", path, errno);
 	}
@@ -28,6 +29,7 @@ void pascal_gov_sensor_init_bat_thermal(
 	pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor, const char *path)
 {
 	sensor->fd = open(path, O_RDONLY | O_CLOEXEC);
+	sensor->scale_multiplier = SCALE_DECI;
 	if (sensor->fd < 0) {
 		LOGW("sensor: failed to open node %s err=%d", path, errno);
 	}
@@ -87,15 +89,7 @@ read_temp_internal(pascal_gov_thermal_sensor *PASCAL_GOV_RESTRICT sensor,
 		return -EINVAL;
 	}
 
-	float final_temp = (float)parsed_val;
-	float abs_temp = (final_temp < 0.0F) ? -final_temp : final_temp;
-
-	if (PASCAL_GOV_LIKELY(abs_temp >= TEMP_SCALE_MILLI_THRESHOLD))
-		*out_temp = final_temp * 0.001F;
-	else if (abs_temp >= TEMP_SCALE_DECI_THRESHOLD)
-		*out_temp = final_temp * 0.1F;
-	else
-		*out_temp = final_temp;
+	*out_temp = (float)parsed_val * sensor->scale_multiplier;
 
 	return 0;
 }

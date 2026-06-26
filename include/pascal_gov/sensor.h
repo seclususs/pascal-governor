@@ -9,6 +9,7 @@
 
 typedef struct {
 	int fd;
+	float scale_multiplier;
 	uint8_t buffer[16];
 } pascal_gov_thermal_sensor;
 
