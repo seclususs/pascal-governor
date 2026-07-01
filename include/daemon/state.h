@@ -13,6 +13,9 @@
 #include <stdbool.h>
 #include <time.h>
 
+struct pascal_gov_context;
+typedef void (*pascal_gov_event_cb)(struct pascal_gov_context *ctx);
+
 typedef struct PASCAL_GOV_ALIGNED(64) pascal_gov_context {
 	pascal_gov_psi_monitor psi_monitor;
 	pascal_gov_thermal_sensor cpu_temp_sensor;
@@ -40,6 +43,9 @@ typedef struct PASCAL_GOV_ALIGNED(64) pascal_gov_context {
 	int next_wake_ms;
 
 	volatile bool shutdown_requested;
+
+	pascal_gov_event_cb on_trigger;
+	pascal_gov_event_cb on_timeout;
 } pascal_gov_context;
 
 #endif // PASCAL_GOV_DAEMON_STATE_H
